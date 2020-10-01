@@ -72,7 +72,7 @@ int Start() {
 			configFile << "-reward\n-rewardMax\n-rewardMin\n-rewardRange\n-baseChance";
 		}
 	}
-	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n\n";
+	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'left' to save and quit\n-'right' to quit without saving\n\n";
 	if (FileExist("vectors.txt") && FileExist("states.txt")) {
 		string input;
 		cout << "Would you like to load current data? (curent dir) y/n: ";
@@ -271,6 +271,13 @@ int OtherIn() {
 			cout << "Regetting address...";
 			GetAddressData();
 			cout << "Done!\n";
+		}
+		if ((GetAsyncKeyState(VkKeyScan('r')) & 0x0001) != 0) {
+			for (int i = 0; i < clickChance.size(); i++) {
+				clickChance[i] = baseChance;
+				states[i] = NONE;
+			}
+			cout << "Reset very nice!\n";
 		}
 	}
 }
