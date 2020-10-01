@@ -56,6 +56,15 @@ int Start() {
 				case 4: 
 					baseChance = stof(line); 
 					break;
+				case 5:
+					blockSize = stof(line);
+					break;
+				case 6:
+					amountOfSameDeathToMut = stof(line);
+					break;
+				case 7:
+					deathFail = stof(line);
+					break;
 				}
 				i++;
 			}
@@ -68,8 +77,11 @@ int Start() {
 			configFile << rewardMax << endl;
 			configFile << rewardMin << endl;
 			configFile << rewardRange << endl;
-			configFile << baseChance << endl << endl;
-			configFile << "-reward\n-rewardMax\n-rewardMin\n-rewardRange\n-baseChance";
+			configFile << baseChance << endl;
+			configFile << blockSize << endl;
+			configFile << amountOfSameDeathToMut << endl;
+			configFile << deathFail << endl << endl;
+			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount";
 		}
 	}
 	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'left' to save and quit\n-'right' to quit without saving\n\n";
