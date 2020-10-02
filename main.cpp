@@ -103,7 +103,7 @@ int Start() {
 			configFile << deathFail << endl;
 			configFile << placeCheckpointRange << endl;
 			configFile << practiceDeathAmount << endl << endl;
-			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount\n-PlaceCheckpointRange\n-PracticeDeathAtSamePlaceAmount";
+			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-BlockSize\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount\n-PlaceCheckpointRange\n-PracticeDeathAtSamePlaceAmount";
 		}
 	}
 	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'c' enable/disables placing checkpoints\n-'left' to save and quit\n-'right' to quit without saving\n\n";
