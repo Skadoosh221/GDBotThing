@@ -24,7 +24,7 @@ float reward = 25; // How likely the ai will do whatever it did at the block rew
 float rewardMin = 0, rewardMax = 100;
 
 float deathFailRange = rewardRange; // if the amount of deaths at the same place pass the threshold, how many blocks behind should be deemed as bad
-float deathFail = 20; // the amount to fail the actions when on a death mutation
+float deathFail = 10, practiceDeathAmount = 15; // the amount to fail the actions when on a death mutation
 int amountOfSameDeathToMut = 5; // Amount of times to die at the same spot to mutate
 
 bool startingNew = false;
@@ -33,6 +33,8 @@ bool guideMode = false;
 bool allowCheckpoints = true;
 
 //Values that you CANNOT TWEAK!!!
+
+vector<float> checkpointsDone;
 int xpos, lastxpos, vlastxpos, furthestXpos;
 int dieSPTimes = 0, lastDeathPos, vLastDeathPos;
 
@@ -54,8 +56,10 @@ DWORD pointsAddress, pointsAddressGM;
 INPUT input;
 SHORT key = VK_SPACE;
 SHORT key2 = VkKeyScan('z');
+SHORT key3 = VkKeyScan('x');
 UINT mappedKey = MapVirtualKey(LOBYTE(key), 0);
 UINT mappedKey2 = MapVirtualKey(LOBYTE(key2), 0);
+UINT mappedKey3 = MapVirtualKey(LOBYTE(key3), 0);
 
 vector<State> states;
 vector<float> clickChance;

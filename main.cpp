@@ -14,8 +14,15 @@ void Input(int in) {
 		input.ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
 		SendInput(1, &input, sizeof(input));
 	}
-	else {
+	else if (in == 2) {
 		input.ki.wScan = mappedKey2;
+		input.ki.dwFlags = 0;
+		SendInput(1, &input, sizeof(input));
+		input.ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+		SendInput(1, &input, sizeof(input));
+	}
+	else {
+		input.ki.wScan = mappedKey3;
 		input.ki.dwFlags = 0;
 		SendInput(1, &input, sizeof(input));
 		input.ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
@@ -75,6 +82,9 @@ int Start() {
 				case 8:
 					placeCheckpointRange = stof(line);
 					break;
+				case 9:
+					practiceDeathAmount = stof(line);
+					break;
 				}
 				i++;
 			}
@@ -91,8 +101,9 @@ int Start() {
 			configFile << blockSize << endl;
 			configFile << amountOfSameDeathToMut << endl;
 			configFile << deathFail << endl;
-			configFile << placeCheckpointRange << endl << endl;
-			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount\n-PlaceCheckpointRange";
+			configFile << placeCheckpointRange << endl;
+			configFile << practiceDeathAmount << endl << endl;
+			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount\n-PlaceCheckpointRange\n-PracticeDeathAtSamePlaceAmount";
 		}
 	}
 	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'c' enable/disables placing checkpoints\n-'left' to save and quit\n-'right' to quit without saving\n\n";
@@ -173,6 +184,7 @@ void Ai() {
 	}
 	while (xpos >= states.size()) {
 		states.resize(xpos + 1);
+		checkpointsDone.resize(xpos);
 	}
 
 	//When dead
@@ -195,6 +207,10 @@ void Ai() {
 					}
 				}
 			}
+			//Press x
+			if (dieSPTimes >= practiceDeathAmount) {
+				Input(3);
+			}
 		}
 		else {
 			dieSPTimes = 0;
@@ -215,8 +231,11 @@ void Ai() {
 
 				//Place Checkpoint
 				if (xpos == furthestXpos - placeCheckpointRange) {
-					if (clickChance[furthestXpos - placeCheckpointRange] >= rewardMax || clickChance[furthestXpos - placeCheckpointRange] <= rewardMin) {
-						Input(3);
+					if (checkpointsDone[furthestXpos - placeCheckpointRange] == 0) {
+						if (clickChance[furthestXpos - placeCheckpointRange] >= rewardMax || clickChance[furthestXpos - placeCheckpointRange] <= rewardMin) {
+							Input(2);
+							checkpointsDone[furthestXpos - placeCheckpointRange] = 1;
+						}
 					}
 				}
 			}
