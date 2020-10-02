@@ -10,7 +10,14 @@ void Input(int in) {
 		input.ki.dwFlags = 0;
 		SendInput(1, &input, sizeof(input));
 	}
+	else if (in == NONE) {
+		input.ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+		SendInput(1, &input, sizeof(input));
+	}
 	else {
+		input.ki.wScan = mappedKey2;
+		input.ki.dwFlags = 0;
+		SendInput(1, &input, sizeof(input));
 		input.ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
 		SendInput(1, &input, sizeof(input));
 	}
@@ -65,6 +72,9 @@ int Start() {
 				case 7:
 					deathFail = stof(line);
 					break;
+				case 8:
+					placeCheckpointRange = stof(line);
+					break;
 				}
 				i++;
 			}
@@ -80,11 +90,12 @@ int Start() {
 			configFile << baseChance << endl;
 			configFile << blockSize << endl;
 			configFile << amountOfSameDeathToMut << endl;
-			configFile << deathFail << endl << endl;
-			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount";
+			configFile << deathFail << endl;
+			configFile << placeCheckpointRange << endl << endl;
+			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount\n-PlaceCheckpointRange";
 		}
 	}
-	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'left' to save and quit\n-'right' to quit without saving\n\n";
+	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'c' enable/disables placing checkpoints\n-'left' to save and quit\n-'right' to quit without saving\n\n";
 	if (FileExist("vectors.txt") && FileExist("states.txt")) {
 		string input;
 		cout << "Would you like to load current data? (curent dir) y/n: ";
@@ -148,6 +159,7 @@ int Start() {
 	else {
 		startingNew = true;
 	}
+	cout << "Guidemode Disabled!\nCheckpoints Enabled!\nAi Enabled!\n";
 	GetAddressData();
 }
 
@@ -192,9 +204,23 @@ void Ai() {
 		checkIsDead = false;
 	}
 
-	//Update every new block
+	//Update every new block (also contains most of the ai logic)
 	if (xpos != lastxpos) {
 		if (!aiDisabled) {
+			if (allowCheckpoints) {
+				//Set furthest xpos
+				if (xpos > furthestXpos) {
+					furthestXpos = xpos;
+				}
+
+				//Place Checkpoint
+				if (xpos == furthestXpos - placeCheckpointRange) {
+					if (clickChance[furthestXpos - placeCheckpointRange] >= rewardMax || clickChance[furthestXpos - placeCheckpointRange] <= rewardMin) {
+						Input(3);
+					}
+				}
+			}
+
 			//Change state based on xpos chance ya ba da ba doo
 			if (xpos - 1 >= 0) {
 				if (rand() % 100 < clickChance[xpos]) {
@@ -290,6 +316,16 @@ int OtherIn() {
 				states[i] = NONE;
 			}
 			cout << "Reset very nice!\n";
+		}
+		if ((GetAsyncKeyState(VkKeyScan('c')) & 0x0001) != 0) {
+			if (allowCheckpoints) {
+				allowCheckpoints = false;
+				cout << "Checkpoints Disabled!" << endl;
+			}
+			else {
+				allowCheckpoints = true;
+				cout << "Checkpoints Enabled!" << endl;
+			}
 		}
 	}
 }

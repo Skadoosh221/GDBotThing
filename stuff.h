@@ -15,7 +15,7 @@ using namespace chrono;
 //All the normal values that you can tweak
 float blockDivision = 1;
 
-float rewardRange = 10 * blockDivision, blockSize = 30 / blockDivision;
+float rewardRange = 10, blockSize = 30, placeCheckpointRange = 30;
 float baseChance = 50 / blockDivision; // Higher it is, the more likely for a click
 
 float preLoadSize = floor(200000 / blockSize); // The amount of vectors you want preloaded if chosen
@@ -23,16 +23,17 @@ float preLoadSize = floor(200000 / blockSize); // The amount of vectors you want
 float reward = 25; // How likely the ai will do whatever it did at the block rewardRange
 float rewardMin = 0, rewardMax = 100;
 
-float deathFailRange = rewardRange * blockDivision; // if the amount of deaths at the same place pass the threshold, how many blocks behind should be deemed as bad
+float deathFailRange = rewardRange; // if the amount of deaths at the same place pass the threshold, how many blocks behind should be deemed as bad
 float deathFail = 20; // the amount to fail the actions when on a death mutation
 int amountOfSameDeathToMut = 5; // Amount of times to die at the same spot to mutate
 
 bool startingNew = false;
 bool aiDisabled = false;
 bool guideMode = false;
+bool allowCheckpoints = true;
 
 //Values that you CANNOT TWEAK!!!
-int xpos, lastxpos, vlastxpos;
+int xpos, lastxpos, vlastxpos, furthestXpos;
 int dieSPTimes = 0, lastDeathPos, vLastDeathPos;
 
 bool checkIsDead;
@@ -52,7 +53,9 @@ DWORD pointsAddress, pointsAddressGM;
 
 INPUT input;
 SHORT key = VK_SPACE;
+SHORT key2 = VkKeyScan('z');
 UINT mappedKey = MapVirtualKey(LOBYTE(key), 0);
+UINT mappedKey2 = MapVirtualKey(LOBYTE(key2), 0);
 
 vector<State> states;
 vector<float> clickChance;
