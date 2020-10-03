@@ -59,36 +59,45 @@ int Start() {
 			string line;
 			int i = 0;
 			while (getline(configFile, line)) {
+				string tmp;
+				for (char& c : line) {
+					if (c == ';') {
+						break;
+					}
+					else {
+						tmp += c;
+					}
+				}
 				switch (i) {
 				case 0:
-					reward = stof(line);
+					reward = stof(tmp);
 					break;
 				case 1:
-					rewardMax = stof(line);
+					rewardMax = stof(tmp);
 					break;
 				case 2: 
-					rewardMin = stof(line);
+					rewardMin = stof(tmp);
 					break;
 				case 3:
-					rewardRange = stof(line);
+					rewardRange = stof(tmp);
 					break;
 				case 4: 
-					baseChance = stof(line); 
+					baseChance = stof(tmp);
 					break;
 				case 5:
-					blockSize = stof(line);
+					blockSize = stof(tmp);
 					break;
 				case 6:
-					amountOfSameDeathToMut = stof(line);
+					amountOfSameDeathToMut = stof(tmp);
 					break;
 				case 7:
-					deathFail = stof(line);
+					deathFail = stof(tmp);
 					break;
 				case 8:
-					placeCheckpointRange = stof(line);
+					placeCheckpointRange = stof(tmp);
 					break;
 				case 9:
-					practiceDeathAmount = stof(line);
+					practiceDeathAmount = stof(tmp);
 					break;
 				}
 				i++;
@@ -98,17 +107,16 @@ int Start() {
 	else {
 		ofstream configFile("config.txt");
 		if (configFile.is_open()) {
-			configFile << reward << endl;
-			configFile << rewardMax << endl;
-			configFile << rewardMin << endl;
-			configFile << rewardRange << endl;
-			configFile << baseChance << endl;
-			configFile << blockSize << endl;
-			configFile << amountOfSameDeathToMut << endl;
-			configFile << deathFail << endl;
-			configFile << placeCheckpointRange << endl;
-			configFile << practiceDeathAmount << endl << endl;
-			configFile << "-Reward\n-RewardMax\n-RewardMin\n-RewardRange\n-BaseChance\n-BlockSize\n-AmountOfSameDeathToMutate\n-DyingAtSamePlaceMutateAmount\n-PlaceCheckpointRange\n-PracticeDeathAtSamePlaceAmount";
+			configFile << reward << "; -Reward : 'How much the ai should be rewarded'" << endl;
+			configFile << rewardMax << "; -RewardMax : 'The max amount of reward it can have'" << endl;
+			configFile << rewardMin << "; -RewardMin : 'The min amount of reward it can have'" << endl;
+			configFile << rewardRange << "; -RewardRange : 'The block this distance away should be rewarded'" << endl;
+			configFile << baseChance << "; -BaseChance : 'The chance for a new block should have'" << endl;
+			configFile << blockSize << "; -BlockSize : 'The size of a block' (normal size is 30)" << endl;
+			configFile << amountOfSameDeathToMut << "; -AmountOfSameDeathToMut : 'Amount of deaths it does at the same place to mutate'" << endl;
+			configFile << deathFail << "; -DeathFail : 'The amount the ai should mutate'" << endl;
+			configFile << placeCheckpointRange << "; -PlaceCheckpointDistance : 'The distance from the furthest the ai has gone to place a checkpoint'" << endl;
+			configFile << practiceDeathAmount << "; -PracticeDeathAmount : 'The amount of times to die at the sameplace to remove a checkpoint'" << endl << endl;
 		}
 	}
 	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'c' enable/disables placing checkpoints\n-'left' to save and quit\n-'right' to quit without saving\n\n";
