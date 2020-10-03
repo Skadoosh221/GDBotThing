@@ -38,6 +38,11 @@ void SetAddressValues() {
 	ReadProcessMemory(wHandle, (LPVOID)pointsAddress, &value, sizeof(value), NULL);
 	xpos = value / blockSize;
 
+	//Set ypos value
+	float value3 = 0;
+	ReadProcessMemory(wHandle, (LPVOID)pointsAddressY, &value3, sizeof(value3), NULL);
+	ypos = value3;
+
 	//Set gamemode value
 	long long value2 = 0;
 	ReadProcessMemory(wHandle, (LPVOID)pointsAddressGM, &value2, sizeof(value2), NULL);
@@ -107,7 +112,7 @@ int Start() {
 		}
 	}
 	cout << "Controls: \n-'g' to reget the address (use if ai isn't doing anything)\n-'l' disables/enables ai\n-'k' disables/enables guide mode (use right click instead of left)\n-'r' reset ai data\n-'c' enable/disables placing checkpoints\n-'left' to save and quit\n-'right' to quit without saving\n\n";
-	if (FileExist("vectors.txt") && FileExist("states.txt")) {
+	if (FileExist("vectors.txt") && FileExist("states.txt") && FileExist("checkpoints.txt")) {
 		string input;
 		cout << "Would you like to load current data? (curent dir) y/n: ";
 		cin >> input;
@@ -121,6 +126,18 @@ int Start() {
 				while (getline(vectorsFile, line)) {
 					clickChance.resize(i + 1);
 					clickChance[i] = stof(line);
+					i++;
+				}
+			}
+
+			//Load checkpoints
+			ifstream checkpointsFile("checkpoints.txt");
+			if (checkpointsFile.is_open()) {
+				string line;
+				int i = 0;
+				while (getline(checkpointsFile, line)) {
+					checkpointsDone.resize(i + 1);
+					checkpointsDone[i] = stof(line);
 					i++;
 				}
 			}
@@ -175,7 +192,6 @@ int Start() {
 }
 
 void Ai() {
-	//auto t1 = high_resolution_clock::now();
 
 	//Resize arrays
 	while (xpos >= clickChance.size()) {
@@ -185,6 +201,14 @@ void Ai() {
 	while (xpos >= states.size()) {
 		states.resize(xpos + 1);
 		checkpointsDone.resize(xpos);
+	}
+
+	//Detect if in air
+	if (ypos != lastypos) {
+		isAir = true;
+	}
+	else {
+		isAir = false;
 	}
 
 	//When dead
@@ -233,8 +257,10 @@ void Ai() {
 				if (xpos == furthestXpos - placeCheckpointRange) {
 					if (checkpointsDone[furthestXpos - placeCheckpointRange] == 0) {
 						if (clickChance[furthestXpos - placeCheckpointRange] >= rewardMax || clickChance[furthestXpos - placeCheckpointRange] <= rewardMin) {
-							Input(2);
-							checkpointsDone[furthestXpos - placeCheckpointRange] = 1;
+							if (!isAir && currentGamemode != ship && currentGamemode != (ship + upsideDown)) {
+								Input(2);
+								checkpointsDone[furthestXpos - placeCheckpointRange] = 1;
+							}
 						}
 					}
 				}
@@ -289,10 +315,7 @@ void Ai() {
 
 	vlastxpos = lastxpos;
 	lastxpos = xpos;
-
-	//auto t2 = high_resolution_clock::now();
-	//system("cls");
-	//cout << "Duration: " << duration_cast<microseconds>(t2 - t1).count() << "us";
+	lastypos = ypos;
 }
 
 int OtherIn() {
@@ -357,7 +380,6 @@ int main() {
 	cout << "Started!\n";
 	//Main loop
 	while (true) {
-		//auto t1 = high_resolution_clock::now();
 		//Save or quit
 		if ((GetAsyncKeyState(VK_LEFT) & 0x0001) != 0) {
 			remove("vectors.txt");
@@ -378,6 +400,14 @@ int main() {
 					statesFile << states[i] << endl;
 				}
 			}
+
+			//Save checkpoints
+			ofstream checkpointsFile("checkpoints.txt");
+			if (checkpointsFile.is_open()) {
+				for (int i = 0; i < checkpointsDone.size(); i++) {
+					checkpointsFile << checkpointsDone[i] << endl;
+				}
+			}
 			cout << endl << "Saved!";
 			otherin.detach();
 
@@ -394,8 +424,5 @@ int main() {
 
 		SetAddressValues();
 		Ai();
-		//auto t2 = high_resolution_clock::now();
-		//system("cls");
-		//cout << "Duration: " << duration_cast<microseconds>(t2 - t1).count() << "us";
 	}
 }

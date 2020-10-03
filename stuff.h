@@ -13,10 +13,9 @@ using namespace chrono;
 
 //*--Variables--*//
 //All the normal values that you can tweak
-float blockDivision = 1;
 
 float rewardRange = 10, blockSize = 30, placeCheckpointRange = 30;
-float baseChance = 50 / blockDivision; // Higher it is, the more likely for a click
+float baseChance = 50; // Higher it is, the more likely for a click
 
 float preLoadSize = floor(200000 / blockSize); // The amount of vectors you want preloaded if chosen
 
@@ -35,10 +34,12 @@ bool allowCheckpoints = true;
 //Values that you CANNOT TWEAK!!!
 
 vector<float> checkpointsDone;
+float ypos, lastypos;
+
 int xpos, lastxpos, vlastxpos, furthestXpos;
 int dieSPTimes = 0, lastDeathPos, vLastDeathPos;
 
-bool checkIsDead;
+bool checkIsDead, isAir;
 bool checkedIfAiActive, checkedGuideMode;
 
 long long currentGamemode;
@@ -50,8 +51,9 @@ enum State {
 _TCHAR gameName[] = _T("GeometryDash.exe");
 DWORD pid, baseAddress = NULL, gameBaseAddress, offsetGameToBaseAdress = 0x003222D0;
 vector < DWORD > pointsOffsets{ 0x164, 0x224, 0x67C };
+vector < DWORD > pointsOffsetsY{ 0x164, 0x224, 0x680 };
 vector < DWORD > pointsOffsetsGM{ 0x164, 0x224, 0x638 };
-DWORD pointsAddress, pointsAddressGM;
+DWORD pointsAddress, pointsAddressY, pointsAddressGM;
 
 INPUT input;
 SHORT key = VK_SPACE;
@@ -111,6 +113,13 @@ void GetAddressData() {
 			ReadProcessMemory(wHandle, (LPVOID)(pointsAddress + pointsOffsets.at(i)), &pointsAddress, sizeof(pointsAddress), NULL);
 		}
 		pointsAddress += pointsOffsets.at(pointsOffsets.size() - 1);
+
+		//Get ypos addr
+		pointsAddressY = baseAddress;
+		for (int i = 0; i < pointsOffsetsY.size() - 1; i++) {
+			ReadProcessMemory(wHandle, (LPVOID)(pointsAddressY + pointsOffsetsY.at(i)), &pointsAddressY, sizeof(pointsAddressY), NULL);
+		}
+		pointsAddressY += pointsOffsetsY.at(pointsOffsetsY.size() - 1);
 
 		//Get gamemode addr
 		pointsAddressGM = baseAddress;
