@@ -1,133 +1,287 @@
 #pragma once
+#include "SkadooshAPI.h"
+#include "stuff.h"
 #include <iostream>
-#include <fstream>
-#include <chrono>
-#include <Windows.h>
 #include <thread>
-#include <tchar.h>
-#include <TlHelp32.h>
-#include <vector>
-#include <string>
-using namespace std;
-using namespace chrono;
+#include <chrono>
+#define cube 0
+#define ship 1
+#define ufo 256
+#define ball 65536
+#define wave 16777216
+#define robot 4294967296
+#define spider 1099511627776
+#define upsideDown 281474976710656
+#define dead 72057594037927936
 
-//*--Variables--*//
-//All the normal values that you can tweak
+typedef std::chrono::high_resolution_clock highResClock;
+auto startTime = highResClock::now();
 
-float rewardRange = 10, blockSize = 30, placeCheckpointRange = 30;
-float baseChance = 50; // Higher it is, the more likely for a click
+// Variables
 
-float preLoadSize = floor(200000 / blockSize); // The amount of vectors you want preloaded if chosen
+SkadooshAPI sapi;
 
-float reward = 25; // How likely the ai will do whatever it did at the block rewardRange
-float rewardMin = 0, rewardMax = 100;
+std::vector<DWORD> xposOffset = { 0x164, 0x224, 0x67C };
+std::vector<DWORD> yposOffset = { 0x164, 0x224, 0x680 };
+std::vector<DWORD> gmOffset = { 0x164, 0x224, 0x638 };
+std::vector<DWORD> percentageOffset = { 0x164, 0x124, 0xEC, 0x2A4, 0x12C };
+std::vector<DWORD> attemptsOffset = { 0x164, 0xe8, 0x8, 0x4a8 };
 
-float deathFailRange = rewardRange; // if the amount of deaths at the same place pass the threshold, how many blocks behind should be deemed as bad
-float deathFail = 10, practiceDeathAmount = 15; // the amount to fail the actions when on a death mutation
-int amountOfSameDeathToMut = 5; // Amount of times to die at the same spot to mutate
-
-bool startingNew = false;
-bool aiDisabled = false;
-bool guideMode = false;
-bool allowCheckpoints = true;
-
-//Values that you CANNOT TWEAK!!!
-
-vector<float> checkpointsDone;
-float ypos, lastypos;
-
-int xpos, lastxpos, vlastxpos, furthestXpos;
-int dieSPTimes = 0, lastDeathPos, vLastDeathPos;
-
-bool checkIsDead, isAir;
-bool checkedIfAiActive, checkedGuideMode;
-
-long long currentGamemode;
-
-enum State {
-	CLICK, NONE
+std::vector<long double> defaultConfigVectors { 50, 20, 10, 25, 12, 100, 0, 15, 30, 10 };
+std::vector<std::string> configTooltips {
+	"The default chance value of a new position.",
+	"The distance behind the furthest position the ai should place a checkpoint.",
+	"The amount of times to die at the same place to mutate.",
+	"The amount the ai should reward the action it did at the current position - rewardDistance.",
+	"The distance the ai should reward the action it did this current position - this.",
+	"The max amount the chance can have.",
+	"The min amount the chance can have.",
+	"The amount of times to die at the same place to remove a checkpoint.",
+	"The size of a block (normal sized block is 30).",
+	"The amount to mutate the ai on same place death mutations."
 };
 
-_TCHAR gameName[] = _T("GeometryDash.exe");
-DWORD pid, baseAddress = NULL, gameBaseAddress, offsetGameToBaseAdress = 0x003222D0;
-vector < DWORD > pointsOffsets{ 0x164, 0x224, 0x67C };
-vector < DWORD > pointsOffsetsY{ 0x164, 0x224, 0x680 };
-vector < DWORD > pointsOffsetsGM{ 0x164, 0x224, 0x638 };
-DWORD pointsAddress, pointsAddressY, pointsAddressGM;
+std::string percentageStr;
+int xpos = 0, lxpos, ypos = 0, lypos, furthestXpos = 0, percentage, levelCompleteTimes;
+int blockSize = 30;
+unsigned long long currentGM = 0;
 
-INPUT input;
-SHORT key = VK_SPACE;
-SHORT key2 = VkKeyScan('z');
-SHORT key3 = VkKeyScan('x');
-UINT mappedKey = MapVirtualKey(LOBYTE(key), 0);
-UINT mappedKey2 = MapVirtualKey(LOBYTE(key2), 0);
-UINT mappedKey3 = MapVirtualKey(LOBYTE(key3), 0);
+int cDeathAmount, lDeathPos, vlDeathPos, attempts;
+bool isAir, isDead, checkedDead, checkedLevelComplete = false;
+bool aiDisabled, allowCheckpoints = true, guideMode = false, allowRestart = true;
 
-vector<State> states;
-vector<float> clickChance;
+int xposAddress = sapi.GetAddressByOffset(xposOffset);
+int yposAddress = sapi.GetAddressByOffset(yposOffset);
+int currentGMAddress = sapi.GetAddressByOffset(gmOffset);
+int percentageAddress = sapi.GetAddressByOffset(percentageOffset);
+int attemptsAddress = sapi.GetAddressByOffset(attemptsOffset);
 
-//*--Functions--*//
-DWORD GetModuleBaseAddress(TCHAR* modname, DWORD pid) {
-	DWORD modBaseAddr = 0;
-	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
-	MODULEENTRY32 ModuleEntry32 = { 0 };
-	ModuleEntry32.dwSize = sizeof(MODULEENTRY32);
+class Ai {
+public:
+	int reward, rewardMin, rewardMax, rewardDistance, checkpointDistance, baseChance, deathAmountToMut, deathAmountToRemoveCheckpoint, deathMutateFail;
+	std::vector<float> chance;
+	std::vector<int> actions;
+	std::vector<int> checkpoints;
 
-	if (Module32First(hSnapshot, &ModuleEntry32)) {
-		do {
-			if (_tcscmp(ModuleEntry32.szModule, modname) == 0) {
-				modBaseAddr = (DWORD)ModuleEntry32.modBaseAddr; break;
+	void Play() {
+		//Resize stuff
+		while (xpos >= chance.size() || xpos >= actions.size()) {
+			chance.resize(chance.size() + 1);
+			actions.resize(actions.size() + 1);
+			checkpoints.resize(actions.size() + 1);
+
+			chance[chance.size() - 1] = baseChance;
+		}
+
+		if (!aiDisabled) {
+			//Reward
+			if (xpos - rewardDistance >= 0) {
+				if (actions[xpos - rewardDistance] == 0) {
+					chance[xpos - rewardDistance] += reward;
+					if (chance[xpos - rewardDistance] > rewardMax) {
+						chance[xpos - rewardDistance] = rewardMax;
+					}
+				}
+				else {
+					chance[xpos - rewardDistance] -= reward;
+					if (chance[xpos - rewardDistance] < rewardMin) {
+						chance[xpos - rewardDistance] = rewardMin;
+					}
+				}
 			}
-		} while (Module32Next(hSnapshot, &ModuleEntry32));
+
+			//Input
+			if (rand() % 100 <= chance[xpos]) {
+				actions[xpos] = 0;
+				sapi.Input(VK_SPACE, 0);
+			}
+			else {
+				actions[xpos] = 1;
+				sapi.Input(VK_SPACE, 1);
+			}
+
+			//Set checkpoint
+			if (xpos == furthestXpos - checkpointDistance && allowCheckpoints) {
+				if (checkpoints[xpos] == 0 && !isAir && currentGM != ship && currentGM != ship + upsideDown) {
+					if (chance[xpos] >= rewardMax || chance[xpos] <= rewardMin) {
+						checkpoints[xpos] = 1;
+						sapi.Input(VkKeyScan('z'), 0);
+						sapi.Input(VkKeyScan('z'), 1);
+					}
+				}
+			}
+		}
+		else if (guideMode) {
+			if (GetAsyncKeyState(VK_RBUTTON)) {
+				actions[xpos] = 0;
+				chance[xpos] += reward;
+				sapi.Input(VK_SPACE, 0);
+			}
+			else {
+				actions[xpos] = 1;
+				chance[xpos] -= reward;
+				sapi.Input(VK_SPACE, 1);
+			}
+		}
 	}
-	CloseHandle(hSnapshot);
-	return modBaseAddr;
+};
+
+Ai ai;
+
+void OtherIn() {
+	while (true) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		if ((GetAsyncKeyState(VkKeyScan('p')) & 0x0001) != 0) {
+			if (aiDisabled) {
+				aiDisabled = false;
+				std::cout << "Ai Enabled!\n";
+			}
+			else {
+				aiDisabled = true;
+				std::cout << "Ai Disabled!\n";
+			}
+		}
+		if ((GetAsyncKeyState(VkKeyScan('o')) & 0x0001) != 0) {
+			if (allowCheckpoints) {
+				allowCheckpoints = false;
+				std::cout << "Checkpoints Disabled!\n";
+			}
+			else {
+				allowCheckpoints = true;
+				std::cout << "Checkpoints Enabled!\n";
+			}
+		}
+		if ((GetAsyncKeyState(VkKeyScan('i')) & 0x0001) != 0) {
+			std::cout << "Getting addresses...";
+			sapi.GetBaseAddress();
+			xposAddress = sapi.GetAddressByOffset(xposOffset);
+			yposAddress = sapi.GetAddressByOffset(yposOffset);
+			currentGMAddress = sapi.GetAddressByOffset(gmOffset);
+			percentageAddress = sapi.GetAddressByOffset(percentageOffset);
+			std::cout << "Done!\n";
+		}
+		if ((GetAsyncKeyState(VkKeyScan('u')) & 0x0001) != 0) {
+			if (guideMode) {
+				guideMode = false;
+				std::cout << "Guidemode Disabled!\n";
+			}
+			else {
+				guideMode = true;
+				aiDisabled = true;
+				std::cout << "Guidemode Enabled!\n";
+			}
+		}
+		if ((GetAsyncKeyState(VkKeyScan('r')) & 0x0001) != 0) {
+			std::cout << "Resetting...";
+			for (int i = 0; i < ai.actions.size() - 1; i++) {
+				ai.actions[i] = 0;
+				ai.chance[i] = ai.baseChance;
+				ai.checkpoints[i] = 0;
+			}
+			std::cout << "Done!\n";
+		}
+		if ((GetAsyncKeyState(VkKeyScan('y')) & 0x0001) != 0) {
+			if (allowRestart) {
+				allowRestart = false;
+				std::cout << "Auto-Restart Disabled!\n";
+			}
+			else {
+				allowRestart = true;
+				std::cout << "Auto-Restart Enabled!\n";
+			}
+		}
+	}
 }
 
-bool FileExist(string name) {
-	fstream file;
-	file.open(name);
-	if (file.fail()) {
-		return false;
+
+void Start() {
+	startTime = highResClock::now();
+	std::cout << "Controls:\n";
+	std::cout << "-'p' enable/disable ai\n";
+	std::cout << "-'o' enable/disable placing checkpoints\n";
+	std::cout << "-'i' gets the base address (use if the ai isn't working)\n";
+	std::cout << "-'u' enable/disable guidemode\n";
+	std::cout << "-'r' reset data\n";
+	std::cout << "-'y' enable/disable auto-restart\n\n";
+
+	//Check if config is correct
+	bool configTest = false;
+	if (sapi.FindTextInFile(configTooltips[configTooltips.size()- 1], "config.txt")) {
+		configTest = true;
+	}
+
+	//Create/load config
+	if (sapi.FileExists("config.txt") && configTest) {
+		std::vector<long double> configVec = sapi.LoadConfig("config.txt");
+
+		ai.baseChance = configVec[0];
+		ai.checkpointDistance = configVec[1];
+		ai.deathAmountToMut = configVec[2];
+		ai.reward = configVec[3];
+		ai.rewardDistance = configVec[4];
+		ai.rewardMax = configVec[5];
+		ai.rewardMin = configVec[6];
+		ai.deathAmountToRemoveCheckpoint = configVec[7];
+		blockSize = configVec[8];
+		ai.deathMutateFail = configVec[9];
+
+		std::cout << "Config values:\n";
+		std::cout << "ai.baseChance = " << ai.baseChance << "\n";
+		std::cout << "ai.checkpointDistance = " << ai.checkpointDistance << "\n";
+		std::cout << "ai.deathAmountToMut = " << ai.deathAmountToMut << "\n";
+		std::cout << "ai.reward = " << ai.reward << "\n";
+		std::cout << "ai.rewardDistance = " << ai.rewardDistance << "\n";
+		std::cout << "ai.rewardMax = " << ai.rewardMax << "\n";
+		std::cout << "ai.rewardMin = " << ai.rewardMin << "\n";
+		std::cout << "ai.deathAmountToRemoveCheckpoint = " << ai.deathAmountToRemoveCheckpoint << "\n";
+		std::cout << "blockSize = " << blockSize << "\n";
+		std::cout << "ai.deathMutateFail = " << ai.deathMutateFail << "\n\n";
 	}
 	else {
-		return true;
-	}
-}
+		sapi.configVectors = defaultConfigVectors;
+		sapi.configTooltips = configTooltips;
+		sapi.SaveConfig("config.txt");
 
-void GetAddressData() {
-	HWND hProc = FindWindowA(0, "Geometry Dash");
-	DWORD processId = GetWindowThreadProcessId(hProc, &pid);
-	HANDLE wHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-	pointsAddress = 0;
-	pointsAddressGM = 0;
+		std::vector<long double> configVec = sapi.LoadConfig("config.txt");
 
-	while (pointsAddress < 0x100000) {
-		//Gets base address + offset
-		gameBaseAddress = GetModuleBaseAddress(gameName, pid);
-		ReadProcessMemory(wHandle, (LPVOID)(gameBaseAddress + offsetGameToBaseAdress), &baseAddress, sizeof(baseAddress), NULL);
+		ai.baseChance = configVec[0];
+		ai.checkpointDistance = configVec[1];
+		ai.deathAmountToMut = configVec[2];
+		ai.reward = configVec[3];
+		ai.rewardDistance = configVec[4];
+		ai.rewardMax = configVec[5];
+		ai.rewardMin = configVec[6];
+		ai.deathAmountToRemoveCheckpoint = configVec[7];
+		blockSize = configVec[8];
+		ai.deathMutateFail = configVec[9];
 
-		//Get xpos addr
-		pointsAddress = baseAddress;
-		for (int i = 0; i < pointsOffsets.size() - 1; i++) {
-			ReadProcessMemory(wHandle, (LPVOID)(pointsAddress + pointsOffsets.at(i)), &pointsAddress, sizeof(pointsAddress), NULL);
-		}
-		pointsAddress += pointsOffsets.at(pointsOffsets.size() - 1);
-
-		//Get ypos addr
-		pointsAddressY = baseAddress;
-		for (int i = 0; i < pointsOffsetsY.size() - 1; i++) {
-			ReadProcessMemory(wHandle, (LPVOID)(pointsAddressY + pointsOffsetsY.at(i)), &pointsAddressY, sizeof(pointsAddressY), NULL);
-		}
-		pointsAddressY += pointsOffsetsY.at(pointsOffsetsY.size() - 1);
-
-		//Get gamemode addr
-		pointsAddressGM = baseAddress;
-		for (int i = 0; i < pointsOffsetsGM.size() - 1; i++) {
-			ReadProcessMemory(wHandle, (LPVOID)(pointsAddressGM + pointsOffsetsGM.at(i)), &pointsAddressGM, sizeof(pointsAddressGM), NULL);
-		}
-		pointsAddressGM += pointsOffsetsGM.at(pointsOffsetsGM.size() - 1);
+		std::cout << "Config values:\n";
+		std::cout << "ai.baseChance = " << ai.baseChance << "\n";
+		std::cout << "ai.checkpointDistance = " << ai.checkpointDistance << "\n";
+		std::cout << "ai.deathAmountToMut = " << ai.deathAmountToMut << "\n";
+		std::cout << "ai.reward = " << ai.reward << "\n";
+		std::cout << "ai.rewardDistance = " << ai.rewardDistance << "\n";
+		std::cout << "ai.rewardMax = " << ai.rewardMax << "\n";
+		std::cout << "ai.rewardMin = " << ai.rewardMin << "\n";
+		std::cout << "ai.deathAmountToRemoveCheckpoint = " << ai.deathAmountToRemoveCheckpoint << "\n";
+		std::cout << "blockSize = " << blockSize << "\n";
+		std::cout << "ai.deathMutateFail = " << ai.deathMutateFail << "\n\n";
 	}
 
-	CloseHandle(wHandle);
+	std::cout << "\nAi Enabled!\nCheckpoints Enabled!\nGuidemode Disabled!\nAuto-Restart Enabled!\n";
+	if (sapi.FileExists("actions.txt") && sapi.FileExists("checkpoints.txt") && sapi.FileExists("chances.txt")) {
+		char input;
+		std::cout << "Do you want to load the current vectors? (current dir) y/n: ";
+		std::cin >> input;
+
+		if (input == 'y') {
+			std::vector<long double> tmpAction = sapi.LoadVectors("actions.txt");
+			std::vector<long double> tmpCheckpoint = sapi.LoadVectors("checkpoints.txt");
+			std::vector<long double> tmpChance = sapi.LoadVectors("chances.txt");
+
+			ai.chance =  std::vector<float>(tmpChance.begin(), tmpChance.end());
+			ai.actions = std::vector<int> (tmpAction.begin(), tmpAction.end());
+			ai.checkpoints = std::vector<int> (tmpCheckpoint.begin(), tmpCheckpoint.end());
+		}
+	}
 }
