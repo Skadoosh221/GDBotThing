@@ -42,9 +42,69 @@ int main() {
 
 		lxpos = xpos;
 		xpos = sapi.ReadAddress(xposAddress, 3.4f) / blockSize;
+		percentageStr = sapi.ReadAddress(percentageAddress, percentageStr);
 
 		if (xpos >= furthestXpos) {
 			furthestXpos = xpos;
+		}
+
+		std::string temp;
+		if (percentageStr != "" && percentageStr.length() <= 4) {
+			for (char c : percentageStr) {
+				if (c != '%') {
+					temp += c;
+				}
+			}
+			percentage = std::stoi(temp);
+		}
+
+		if (percentage >= 100 && !checkedLevelComplete) {
+			attempts = sapi.ReadAddress(attemptsAddress, attempts);
+
+			checkedLevelComplete = true;
+			levelCompleteTimes++;
+			auto endTime = highResClock::now();
+			if (ai.checkpoints.size() >= 1) {
+				for (int i = 0; i < ai.checkpoints.size() - 1; i++) {
+					ai.checkpoints[i] = 0;
+				}
+			}
+			std::cout << "\nComplete!\nLevel complete times: " << levelCompleteTimes << std::endl;
+			std::cout << "Attempts: " << attempts << "\n";
+			std::string hours, mins, seconds;
+			if (std::chrono::duration_cast<std::chrono::hours>(endTime - startTime).count() > 9) {
+				hours = std::to_string(std::chrono::duration_cast<std::chrono::hours>(endTime - startTime).count());
+			}
+			else {
+				hours = "0" + std::to_string(std::chrono::duration_cast<std::chrono::hours>(endTime - startTime).count());
+			}
+			if (std::chrono::duration_cast<std::chrono::minutes>(endTime - startTime).count() > 9) {
+				mins = std::to_string(std::chrono::duration_cast<std::chrono::minutes>(endTime - startTime).count());
+			}
+			else {
+				mins = "0" + std::to_string(std::chrono::duration_cast<std::chrono::minutes>(endTime - startTime).count());
+			}
+			if (std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count() > 9) {
+				seconds = std::to_string(std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count());
+			}
+			else {
+				seconds = "0" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count());
+			}
+			std::cout << "Time: " << hours << ":" << mins << ":" << seconds << "\n";
+			if (allowRestart) {
+				std::this_thread::sleep_for(std::chrono::seconds(6));
+				sapi.Input(VK_SPACE, 0);
+				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				sapi.Input(VK_SPACE, 1);
+				sapi.Input(VK_SPACE, 0);
+				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				sapi.Input(VK_SPACE, 1);
+			}
+			furthestXpos = 0;
+			startTime = highResClock::now();
+		}
+		else if (percentage < 100 && checkedLevelComplete) {
+			checkedLevelComplete = false;
 		}
 
 		//Update every new block
@@ -52,47 +112,6 @@ int main() {
 			lypos = ypos;
 			ypos = sapi.ReadAddress(yposAddress, ypos);
 			currentGM = sapi.ReadAddress(currentGMAddress, currentGM);
-			percentageStr = sapi.ReadAddress(percentageAddress, percentageStr);
-
-			std::string temp;
-			if (percentageStr != "" && percentageStr.length() <= 4) {
-				for (char c : percentageStr) {
-					if (c != '%') {
-						temp += c;
-					}
-				}
-				percentage = std::stoi(temp);
-			}
-
-			if (percentage >= 100 && !checkedLevelComplete) {
-				attempts = sapi.ReadAddress(attemptsAddress, attempts);
-
-				checkedLevelComplete = true;
-				levelCompleteTimes++;
-				auto endTime = highResClock::now();
-				if (ai.checkpoints.size() >= 1) {
-					for (int i = 0; i < ai.checkpoints.size() - 1; i++) {
-						ai.checkpoints[i] = 0;
-					}
-				}
-				std::cout << "\nComplete!\nLevel complete times: " << levelCompleteTimes << std::endl;
-				std::cout << "Attempts: " << attempts << "\n";
-				std::cout << "Time: " << std::chrono::duration_cast<std::chrono::hours>(endTime - startTime).count() << ":" << std::chrono::duration_cast<std::chrono::minutes>(endTime - startTime).count() << ":" << std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count() << "\n";
-				if (allowRestart) {
-					std::this_thread::sleep_for(std::chrono::seconds(6));
-					sapi.Input(VK_SPACE, 0);
-					std::this_thread::sleep_for(std::chrono::milliseconds(2));
-					sapi.Input(VK_SPACE, 1);
-					sapi.Input(VK_SPACE, 0);
-					std::this_thread::sleep_for(std::chrono::milliseconds(2));
-					sapi.Input(VK_SPACE, 1);
-				}
-				furthestXpos = 0;
-				startTime = highResClock::now();
-			}
-			else if (percentage < 100 && checkedLevelComplete) {
-				checkedLevelComplete = false;
-			}
 
 			//Check if air and if dead
 			isAir = (ypos != lypos);
