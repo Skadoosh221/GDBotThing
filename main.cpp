@@ -44,6 +44,54 @@ int main() {
 		xpos = sapi.ReadAddress(xposAddress, 3.4f) / blockSize;
 		percentageStr = sapi.ReadAddress(percentageAddress, percentageStr);
 
+		lypos = ypos;
+		ypos = sapi.ReadAddress(yposAddress, ypos);
+		currentGM = sapi.ReadAddress(currentGMAddress, currentGM);
+
+		//Check if air and if dead
+		isAir = (ypos != lypos);
+		isDead = (currentGM >= dead);
+
+		//Dead stuff
+		if (isDead && !checkedDead) {
+			checkedDead = true;
+			vlDeathPos = lDeathPos;
+			lDeathPos = xpos;
+
+			if (lDeathPos == vlDeathPos) {
+				cDeathAmount++;
+			}
+			else {
+				cDeathAmount -= 3;
+				if (cDeathAmount < 0) {
+					cDeathAmount = 0;
+				}
+			}
+			if (cDeathAmount >= ai.deathAmountToMut) {
+				for (int i = 0; i < ai.rewardDistance; i++) {
+					if (ai.chance[lDeathPos - i] <= 50) {
+						ai.chance[lDeathPos - i] += ai.deathMutateFail;
+						if (ai.chance[lDeathPos - i] > ai.rewardMax) {
+							ai.chance[lDeathPos - i] = ai.rewardMax;
+						}
+					}
+					else {
+						ai.chance[lDeathPos - i] -= ai.deathMutateFail;
+						if (ai.chance[lDeathPos - i] < ai.rewardMin) {
+							ai.chance[lDeathPos - i] = ai.rewardMin;
+						}
+					}
+				}
+			}
+			if (cDeathAmount >= ai.deathAmountToRemoveCheckpoint) {
+				sapi.Input(VkKeyScan('x'), 0);
+				sapi.Input(VkKeyScan('x'), 1);
+			}
+		}
+		else if (!isDead && checkedDead) {
+			checkedDead = false;
+		}
+
 		if (xpos >= furthestXpos) {
 			furthestXpos = xpos;
 		}
@@ -109,54 +157,6 @@ int main() {
 
 		//Update every new block
 		if (xpos != lxpos) {
-			lypos = ypos;
-			ypos = sapi.ReadAddress(yposAddress, ypos);
-			currentGM = sapi.ReadAddress(currentGMAddress, currentGM);
-
-			//Check if air and if dead
-			isAir = (ypos != lypos);
-			isDead = (currentGM >= dead);
-
-			//Dead stuff
-			if (isDead && !checkedDead) {
-				checkedDead = true;
-				vlDeathPos = lDeathPos;
-				lDeathPos = xpos;
-
-				if (lDeathPos == vlDeathPos) {
-					cDeathAmount++;
-				}
-				else {
-					cDeathAmount -= 3;
-					if (cDeathAmount < 0) {
-						cDeathAmount = 0;
-					}
-				}
-				if (cDeathAmount >= ai.deathAmountToMut) {
-					for (int i = 0; i < ai.rewardDistance; i++) {
-						if (ai.chance[lDeathPos - i] <= 50) {
-							ai.chance[lDeathPos - i] += ai.deathMutateFail;
-							if (ai.chance[lDeathPos - i] > ai.rewardMax) {
-								ai.chance[lDeathPos - i] = ai.rewardMax;
-							}
-						}
-						else {
-							ai.chance[lDeathPos - i] -= ai.deathMutateFail;
-							if (ai.chance[lDeathPos - i] < ai.rewardMin) {
-								ai.chance[lDeathPos - i] = ai.rewardMin;
-							}
-						}
-					}
-				}
-				if (cDeathAmount >= ai.deathAmountToRemoveCheckpoint) {
-					sapi.Input(VkKeyScan('x'), 0);
-					sapi.Input(VkKeyScan('x'), 1);
-				}
-			}
-			else if (!isDead && checkedDead) {
-				checkedDead = false;
-			}
-
 			ai.Play();
 		}
 	}
